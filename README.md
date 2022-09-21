@@ -1,2 +1,2 @@
-# ProjetoCG
-Projeto para a matéria de Computação Gráfica da UFSCar.
+# ProjetoPG
+Projeto para a matéria de Processamento Gráfico da UFSCar.
