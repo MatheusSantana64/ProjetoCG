@@ -11,3 +11,26 @@ Especificações/Avaliação:
 - Definição de pelo menos uma câmera;
 - Movimento simples de pelo menos um objeto;
 - Documentar no github (readme principal) as especificações do projeto, modo de interação e principais características implementadas.
+
+COMO MOVER A CAMERA:
+Y Axis:
+    W -> Move para "cima" (-Y)
+    S -> Move para "baixo" (+Y)
+X Axis:
+    A -> Move para "esquerda" (-X)
+    D -> Move para "direita" (+X)
+Z Axis:
+    Q -> Move para "longe do obj" (-Z)
+    E -> Move para "perto do obj" (+Z)
+
+COMO RODAR A CAMERA:
+X Axis (90 Graus):
+    9 -> Roda camera por cima (+X 90º)
+    7 -> Roda camera por baixo (-X 90º)
+
+X Axis:
+    8 -> Roda camera por cima (+X)
+    2 -> Roda camera por baixo (-X)
+Y Axis:
+    4 -> Roda camera pela esquerda (+Y)
+    6 -> Roda camera pela direita (-Y)

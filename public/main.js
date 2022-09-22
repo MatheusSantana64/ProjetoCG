@@ -105,6 +105,7 @@ var objectsToDraw = [
 const earthMatrix = mat4.create();
 const moonMatrix = mat4.create();
 
+//viewMatrix
 const viewMatrix = mat4.create();
 const projectionMatrix = mat4.create();
 mat4.perspective(projectionMatrix, 
@@ -113,20 +114,64 @@ mat4.perspective(projectionMatrix,
     1e-4, // Distancia de corte proxima
     1e4 // Distancia de corte distante
 );
-
 const mvMatrix = mat4.create();
 const mvpMatrix = mat4.create();
 
 //Posicao e tamanho da Terra
-mat4.translate(earthMatrix, earthMatrix, [0, 0, -5]);
-mat4.scale(earthMatrix, earthMatrix, [30, 30, 30])
+mat4.scale(earthMatrix, earthMatrix, [30, 30, 30]);
 
 //Posicao e tamanho da Lua
-mat4.translate(moonMatrix, moonMatrix, [0, 0, -10]);
-mat4.scale(moonMatrix, moonMatrix, [10, 10, 10])
+mat4.scale(moonMatrix, moonMatrix, [10, 10, 10]);
+mat4.translate(moonMatrix, moonMatrix, [0, 0, -0.3]); //PRECISA AJUSTAR!!!
 
-mat4.translate(viewMatrix, viewMatrix, [0, 0, 10]);
-mat4.invert(viewMatrix, viewMatrix);
+//Camera
+mat4.translate(viewMatrix, viewMatrix, [0, 0, -10]);
+
+//Controlar Camera
+window.onkeypress = e => {
+    //Mover Camera (X Axis)
+    if (e.key == 'd' || e.key == 'A') {
+        mat4.translate(viewMatrix, viewMatrix, [-0.1, 0, 0]);
+    } 
+    else if (e.key == 'a' || e.key == 'D') {
+        mat4.translate(viewMatrix, viewMatrix, [+0.1, 0, 0]);
+    }
+    //Mover Camera (Y Axis)
+    else if (e.key == 'w' || e.key == 'W') {
+        mat4.translate(viewMatrix, viewMatrix, [0, -0.1, 0]);
+    } 
+    else if (e.key == 's' || e.key == 'S') {
+        mat4.translate(viewMatrix, viewMatrix, [0, +0.1, 0]);
+    }
+    //Mover Camera (Z Axis)
+    else if (e.key == 'e' || e.key == 'E') {
+        mat4.translate(viewMatrix, viewMatrix, [0, 0, +0.1]);
+    }
+    else if (e.key == 'q' || e.key == 'Q') {
+        mat4.translate(viewMatrix, viewMatrix, [0, 0, -0.1]);
+    }
+    //Rodar Camera Vertical (90 Graus)
+    else if (e.key == '9') { //Roda a camera 90 graus por cima
+        mat4.rotateX(viewMatrix, viewMatrix, Math.PI/2);
+    }
+    else if (e.key == '7') { //Roda a camera 90 graus por baixo
+        mat4.rotateX(viewMatrix, viewMatrix, -Math.PI/2);
+    }
+    //Rodar Camera Vertical
+    else if (e.key == '8') { //Roda camera por cima
+        mat4.rotateX(viewMatrix, viewMatrix, +0.1);
+    } 
+    else if (e.key == '2') { //Roda camera por baixo
+        mat4.rotateX(viewMatrix, viewMatrix, -0.1);
+    } 
+    //Rodar Camera Horizontal
+    else if (e.key == '4') { //Roda camera pela esquerda
+        mat4.rotateY(viewMatrix, viewMatrix, +0.1);
+    } 
+    else if (e.key == '6') { //Roda camera pela direita
+        mat4.rotateY(viewMatrix, viewMatrix, -0.1);
+    }
+}
 
 var currentTime = Date.now();
 var animationStartTime = currentTime;
@@ -177,7 +222,6 @@ function animate() {
             let z = Math.sin(angle) * circleRadius;
 
             mat4.translate(moonMatrix,moonMatrix, [x, 0, z]),
-            //mat4.scale(moonMatrix, moonMatrix, [0.5, 0.5, 0.5]);
             mat4.multiply(mvMatrix, viewMatrix, moonMatrix);
         }
         
