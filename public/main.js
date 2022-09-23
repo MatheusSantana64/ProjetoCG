@@ -8,44 +8,7 @@ if (!gl) {
     throw new Error('WebGL not supported');
 }
 
-//Cria Vertex Shader
-const vertexShader = gl.createShader(gl.VERTEX_SHADER);
-gl.shaderSource(vertexShader, `
-precision mediump float;
-attribute vec3 position;
-attribute vec3 color;
-varying vec3 vColor;
-uniform mat4 matrix;
-void main() {
-    vColor = color;
-    gl_Position = matrix * vec4(position, 1);
-}
-`);
-
-gl.compileShader(vertexShader);
-
-//Cria Fragment Shader
-const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-gl.shaderSource(fragmentShader, `
-precision mediump float;
-varying vec3 vColor;
-void main() {
-    gl_FragColor = vec4(vColor, 1);
-}
-`);
-
-gl.compileShader(fragmentShader);
-console.log(gl.getShaderInfoLog(fragmentShader));
-
-//Cria o programa e anexa os shaders ao programa
-const program = gl.createProgram();
-gl.attachShader(program, vertexShader);
-gl.attachShader(program, fragmentShader);
-
-gl.linkProgram(program);
-
-gl.useProgram(program);
-gl.enable(gl.DEPTH_TEST);
+const program = initShaders(gl, 'shader/vertexShader.glsl', 'shader/fragmentShader.glsl');
 
 
 const uniformLocations = {
@@ -82,25 +45,58 @@ for (var i = 0; i < obj.position.length; i++){
 }
 
 
-var objectsToDraw = [
-    {
-      name: 'earth',
-      programInfo: program,
+// var objectsToDraw = [
+//     {
+//       name: 'earth',
+//       programInfo: program,
 
-      uniforms: uniformLocations,
-      position: vertexData,
-      color: earthColor,
-    },
+//       uniforms: uniformLocations,
+//       position: vertexData,
+//       color: earthColor,
+//     },
 
-    {
-        name: 'moon',
-        programInfo: program,
+//     {
+//         name: 'moon',
+//         programInfo: program,
   
-        uniforms: uniformLocations,
-        position: vertexData,
-        color: moonColor,
-      }
-  ];
+//         uniforms: uniformLocations,
+//         position: vertexData,
+//         color: moonColor,
+//       }
+//   ];
+
+
+
+var earthNode = new Node();
+mat4.translate(earthNode.localMatrix, earthNode.localMatrix, [0, 0, 0]);
+earthNode.drawInfo = {
+    name: 'earth',
+    uniforms: uniformLocations,
+    programInfo: program,
+    position: vertexData,
+    color : earthColor
+};
+
+var moonNode = new Node();
+mat4.translate(moonNode.localMatrix, moonNode.localMatrix, [.1, 0, 0]);  // moon .1 units from the earth
+mat4.scale(moonNode.localMatrix, moonNode.localMatrix, [.3, .3, .3]);  // moon .1 units from the earth
+
+moonNode.drawInfo = {
+    name: 'moon',
+    uniforms: uniformLocations,
+    programInfo: program,
+    position: vertexData,
+    color: moonColor,
+};
+
+ // connect the celetial objects
+ moonNode.setParent(earthNode);
+
+var objects = [
+    earthNode,
+    moonNode,
+];
+
 
 const earthMatrix = mat4.create();
 const moonMatrix = mat4.create();
@@ -122,7 +118,7 @@ mat4.scale(earthMatrix, earthMatrix, [30, 30, 30]);
 
 //Posicao e tamanho da Lua
 mat4.scale(moonMatrix, moonMatrix, [10, 10, 10]);
-mat4.translate(moonMatrix, moonMatrix, [0, 0, -0.3]); //PRECISA AJUSTAR!!!
+mat4.translate(moonMatrix, moonMatrix, [0, 0, 0]); //PRECISA AJUSTAR!!!
 
 //Camera
 mat4.translate(viewMatrix, viewMatrix, [0, 0, -10]);
@@ -130,10 +126,10 @@ mat4.translate(viewMatrix, viewMatrix, [0, 0, -10]);
 //Controlar Camera
 window.onkeypress = e => {
     //Mover Camera (X Axis)
-    if (e.key == 'd' || e.key == 'A') {
+    if (e.key == 'a' || e.key == 'A') {
         mat4.translate(viewMatrix, viewMatrix, [-0.1, 0, 0]);
     } 
-    else if (e.key == 'a' || e.key == 'D') {
+    else if (e.key == 'd' || e.key == 'D') {
         mat4.translate(viewMatrix, viewMatrix, [+0.1, 0, 0]);
     }
     //Mover Camera (Y Axis)
@@ -178,11 +174,20 @@ var animationStartTime = currentTime;
 
 //Funcao de animacao para mover a lua e girar a terra
 function animate() {
+    var currentTime = Date.now();
+    // Update FPS if a second or more has passed since last FPS update
+    if(currentTime - gl.previousFrameTimeStamp >= 1000) {
+        gl.fpsCounter.innerHTML = pwgl.nbrOfFramesForFPS;
+        gl.nbrOfFramesForFPS = 0;
+        gl.previousFrameTimeStamp = currentTime;
+    }
 
     //Chama a animacao novamente
     requestAnimationFrame(animate);
 
     objectsToDraw.forEach( e => {
+        gl.useProgram(e.programInfo,); 
+        
         //Buffer da posicao de cada objeto
         const positionBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
@@ -208,14 +213,14 @@ function animate() {
 
         //Rotacao da Terra
         if(e.name == 'earth'){
-            mat4.rotateY(earthMatrix, earthMatrix, Math.PI/2 /100);
+            //mat4.rotateY(earthMatrix, earthMatrix, Math.PI/2 /100);
             mat4.multiply(mvMatrix, viewMatrix, earthMatrix);
         }
 
         //Movimentacao da Lua
         if(e.name == 'moon'){
-            let orbitalMultipler = 5000;
-            let circleRadius = 0.005;
+            let orbitalMultipler = 2000;
+            let circleRadius = .05;
             let elapsedTime = currentTime - animationStartTime;
             let angle = elapsedTime / orbitalMultipler*2*Math.PI % (2*Math.PI);
             let x = Math.cos(angle) * circleRadius;
@@ -228,8 +233,82 @@ function animate() {
         mat4.multiply(mvpMatrix, projectionMatrix, mvMatrix);
         gl.uniformMatrix4fv(e.uniforms.matrix, false, mvpMatrix);
         gl.drawArrays(gl.TRIANGLES, 0, e.position.length / 3);
+
+        
     })
 }
 
 //Executa funcao de animacao
-requestAnimationFrame(animate);
+//requestAnimationFrame(animate);
+
+requestAnimationFrame(drawScene);
+// Draw the scene.
+function drawScene() {
+    requestAnimationFrame(drawScene);
+
+    gl.enable(gl.CULL_FACE);
+    gl.enable(gl.DEPTH_TEST);
+
+ 
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    var projectionMatrix = mat4.create();
+    mat4.perspective(projectionMatrix, 
+        75 * Math.PI/180, // Campo-de-visão vertical (angle, radians)
+        canvas.width/canvas.height, // Aspecto Largura/Altura (W/H)
+        1e-4, // Distancia de corte proxima
+        1e4 // Distancia de corte distante
+    );
+
+    // Cria matriz da camera
+    var cameraPosition = [0, 0, 0.4];
+    var target = [0, 0, 0];
+    var up = [0, 1, 0];
+    var viewMatrix = mat4.create();
+    mat4.lookAt(viewMatrix,cameraPosition, target, up);
+    
+
+    var viewProjectionMatrix = mat4.create();
+    mat4.multiply(viewProjectionMatrix,projectionMatrix, viewMatrix);
+
+    // upda6
+    mat4.rotateY(earthNode.localMatrix, earthNode.localMatrix, .07);
+    mat4.rotateY(moonNode.localMatrix, moonNode.localMatrix, .5);
+
+    // Update all world matrices in the scene graph
+    earthNode.updateWorldMatrix();
+
+        
+
+    objects.forEach( e => {
+        gl.useProgram(  e.drawInfo.programInfo,); 
+        
+        //Buffer da posicao de cada objeto
+        const positionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(e.drawInfo.position), gl.STATIC_DRAW);
+
+        //Buffer da cor de cada objeto
+        const colorBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(e.drawInfo.color), gl.STATIC_DRAW);
+
+        const positionLocation = gl.getAttribLocation(e.drawInfo.programInfo, `position`);
+        gl.enableVertexAttribArray(positionLocation);
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0);
+
+        const colorLocation = gl.getAttribLocation(e.drawInfo.programInfo, `color`);
+        gl.enableVertexAttribArray(colorLocation);
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+        gl.vertexAttribPointer(colorLocation, 3, gl.FLOAT, false, 0, 0);
+
+        var mvpMatrix = mat4.create();
+        
+        mat4.multiply(mvpMatrix, viewProjectionMatrix, e.worldMatrix);
+        gl.uniformMatrix4fv(e.drawInfo.uniforms.matrix, false, mvpMatrix);
+        gl.drawArrays(gl.TRIANGLES, 0, e.drawInfo.position.length / 3);
+    })
+
+    
+  }
