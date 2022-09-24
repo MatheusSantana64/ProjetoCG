@@ -3,12 +3,12 @@ var Node = function(program, position, color, uniforms) {
     this.localMatrix = mat4.create();
     this.privateMatrix = mat4.create();
     this.worldMatrix = mat4.create();
-    this.drawInfo = {
-        programInfo: program,
-        position: position,
-        color: color,
-        uniforms: uniforms,
-    };
+
+    this.programInfo= program,
+    this.position= position,
+    this.color= color,
+    this.uniforms= uniforms,
+    
     this.startBuffer()
   };
   
@@ -48,19 +48,24 @@ Node.prototype.updateWorldMatrix = function(matrix) {
 
 Node.prototype.startBuffer = function() {
     //Buffer da posicao de cada objeto
-    const positionBuffer = gl.createBuffer();
+    var positionBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.drawInfo.position), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.position), gl.STATIC_DRAW);
 
     //Buffer da cor de cada objeto
-    const colorBuffer = gl.createBuffer();
+    var colorBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.drawInfo.color), gl.STATIC_DRAW);
-    
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.color), gl.STATIC_DRAW);
+
+    var textureBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, textureBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.texture), gl.STATIC_DRAW);
+
 
     this.buffers = { 
         positionBuffer: positionBuffer,
         colorBuffer: colorBuffer,
+        textureBuffer: textureBuffer,
     }
 }
     

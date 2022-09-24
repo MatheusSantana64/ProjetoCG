@@ -11,9 +11,6 @@ if (!gl) {
 const program = initShaders(gl, 'shader/vertexShader.glsl', 'shader/fragmentShader.glsl');
 
 
-const uniformLocations = {
-    matrix: gl.getUniformLocation(program, `matrix`),
-};
 
 //Carrega objetos (sphere.obj)
 function  loadFileAJAX(name) {
@@ -24,9 +21,68 @@ function  loadFileAJAX(name) {
     return xhr.status == okStatus ? xhr.responseText : null;
 };
 
+function loadTexture(url) {
+    const texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+  
+    // Because images have to be downloaded over the internet
+    // they might take a moment until they are ready.
+    // Until then put a single pixel in the texture so we can
+    // use it immediately. When the image has finished downloading
+    // we'll update the texture with the contents of the image.
+    const level = 0;
+    const internalFormat = gl.RGBA;
+    const width = 1;
+    const height = 1;
+    const border = 0;
+    const srcFormat = gl.RGBA;
+    const srcType = gl.UNSIGNED_BYTE;
+    const pixel = new Uint8Array([0, 0, 255, 255]);  // opaque blue
+    gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,
+                  width, height, border, srcFormat, srcType,
+                  pixel);
+  
+    const image = new Image();
+    image.onload = () => {
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,
+                    srcFormat, srcType, image);
+  
+      // WebGL1 has different requirements for power of 2 images
+      // vs non power of 2 images so check if the image is a
+      // power of 2 in both dimensions.
+      if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
+         // Yes, it's a power of 2. Generate mips.
+         gl.generateMipmap(gl.TEXTURE_2D);
+      } else {
+         // No, it's not a power of 2. Turn off mips and set
+         // wrapping to clamp to edge
+         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      }
+    };
+    image.src = url;
+  
+    return texture;
+  }
+
+  function isPowerOf2(value) {
+    return value & (value - 1) === 0;
+  }
+
 const obj =  parseOBJ(loadFileAJAX('models/sphere.obj')).geometries[0].data;
 
+
 const vertexData = obj.position
+const uvdata = obj.texcoord;
+const color = obj.color;
+
+const earthTexture = loadTexture('models/Textures/earth.jpg');
+gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+
+gl.activeTexture(gl.TEXTURE0);
+gl.bindTexture(gl.TEXTURE_2D, earthTexture);
 
 const earthColor= []
 const moonColor = []
@@ -37,23 +93,40 @@ for (var i = 0; i < obj.position.length/3; i++){
     //Cores da Terra
     earthColor.push(0)  //R
     earthColor.push(Math.random() % .5) //G
-    earthColor.push(.9) //B
+    earthColor.push(.8) //B
     
     //Cores da Lua
+    if(Math.random() < 0.1){
+        moonColor.push(0.3) //R
+        moonColor.push(0.3) //G
+        moonColor.push(0.3) //B
+    }else {
+        moonColor.push(0.6) //R
+        moonColor.push(0.6) //G
+        moonColor.push(0.6) //B
+    }
     
-    moonColor.push(0.6) //R
-    moonColor.push(0.6) //G
-    moonColor.push(0.6) //B
 }
+
+const uniformLocations = {
+    matrix: gl.getUniformLocation(program, `matrix`),
+    textureID: gl.getUniformLocation(program, `textureID`),
+    uUseTexture: gl.getUniformLocation(program, `uUseTexture`),
+
+};
+
 
 
 var earthNode = new Node(program, vertexData, earthColor, uniformLocations);
+//earthNode.texture = uvdata;
 mat4.translate(earthNode.localMatrix, earthNode.localMatrix, [0, 0, 0]);
+//mat4.scale(earthNode.localMatrix, earthNode.localMatrix, [100, 100, 100]);  // lua tem 27% diametro da terra
+
 
 
 var moonNode = new Node(program, vertexData, moonColor, uniformLocations);
-mat4.translate(moonNode.localMatrix, moonNode.localMatrix, [.1, 0, 0]);  // moon .1 units from the earth
-mat4.scale(moonNode.localMatrix, moonNode.localMatrix, [.3, .3, .3]);  // 
+mat4.translate(moonNode.localMatrix, moonNode.localMatrix, [5, 0, 0]);  // moon .1 units from the earth
+mat4.scale(moonNode.localMatrix, moonNode.localMatrix, [.27, .27, .27]);  // lua tem 27% diametro da terra
 
 // seta lua como nó filho da terra 
 moonNode.setParent(earthNode);
@@ -110,7 +183,7 @@ window.onkeypress = e => {
     }
 }
 
-var baseSpeed = .01
+var baseSpeed = 1
 
 requestAnimationFrame(drawScene);
 // Draw the scene.
@@ -132,7 +205,7 @@ function drawScene() {
     );
 
     // Cria matriz da camera
-    var cameraPosition = [0, 0, 0.4];
+    var cameraPosition = [0, 0, 10];
     var target = [0, 0, 0];
     var up = [0, 1, 0];
     var viewMatrix = mat4.create();
@@ -143,7 +216,7 @@ function drawScene() {
     mat4.multiply(viewProjectionMatrix,projectionMatrix, viewMatrix);
     
     let earthRotationSpeed = baseSpeed; // velocidade de rotação da terra
-    let revolutionSpeed = earthRotationSpeed * 2.2 // velocidade de revolução da lua é 2.2 vezes rotação da terra
+    let revolutionSpeed = earthRotationSpeed/30 
     let moonRotationSpeed = earthRotationSpeed/27 
 
     // atualiza as matrizes de cada objeto
@@ -160,24 +233,32 @@ function drawScene() {
 
         
 
-    objects.forEach( e => {
-        gl.useProgram(  e.drawInfo.programInfo,); 
+    objects.forEach( (e, index) => {
+        gl.useProgram(  e.programInfo,); 
         
-        const positionLocation = gl.getAttribLocation(e.drawInfo.programInfo, `position`);
+        const positionLocation = gl.getAttribLocation(e.programInfo, `position`);
         gl.enableVertexAttribArray(positionLocation);
         gl.bindBuffer(gl.ARRAY_BUFFER, e.buffers.positionBuffer);
         gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0);
 
-        const colorLocation = gl.getAttribLocation(e.drawInfo.programInfo, `color`);
+        const colorLocation = gl.getAttribLocation(e.programInfo, `color`);
         gl.enableVertexAttribArray(colorLocation);
         gl.bindBuffer(gl.ARRAY_BUFFER, e.buffers.colorBuffer);
         gl.vertexAttribPointer(colorLocation, 3, gl.FLOAT, false, 0, 0);
+        
+        const uvLocation = gl.getAttribLocation(e.programInfo, `uv`);
+        gl.enableVertexAttribArray(uvLocation);
+        gl.bindBuffer(gl.ARRAY_BUFFER, e.buffers.textureBuffer);
+        gl.vertexAttribPointer(uvLocation, 2, gl.FLOAT, false, 0, 0);
 
         var mvpMatrix = mat4.create();
         
         mat4.multiply(mvpMatrix, viewProjectionMatrix, e.worldMatrix);
-        gl.uniformMatrix4fv(e.drawInfo.uniforms.matrix, false, mvpMatrix);
-        gl.drawArrays(gl.TRIANGLES, 0, e.drawInfo.position.length / 3);
+        
+        gl.uniform1i(e.uniforms.uUseTexture, e.texture != null)
+        gl.uniform1i(e.uniforms.textureID, index)
+        gl.uniformMatrix4fv(e.uniforms.matrix, false, mvpMatrix);
+        gl.drawArrays(gl.TRIANGLES, 0, e.position.length / 3);
     })
 
     
