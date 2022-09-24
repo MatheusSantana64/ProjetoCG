@@ -76,7 +76,7 @@ const obj =  parseOBJ(loadFileAJAX('models/sphere.obj')).geometries[0].data;
 
 const vertexData = obj.position
 const uvdata = obj.texcoord;
-const color = obj.color;
+const normalData = obj.normal;
 
 const earthTexture = loadTexture('models/Textures/earth.jpg');
 gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
@@ -116,25 +116,31 @@ for (var i = 0; i < obj.position.length/3; i++){
 }
 
 const uniformLocations = {
-    matrix: gl.getUniformLocation(program, `matrix`),
+    lightWorldPositionLocation : gl.getUniformLocation(program, "u_lightWorldPosition"),
+    worldLocation: gl.getUniformLocation(program, "u_world"),
+    worldViewProjection: gl.getUniformLocation(program, "u_worldViewProjection"),
+    worldInverseTranspose: gl.getUniformLocation(program, "u_worldInverseTranspose"),
     textureID: gl.getUniformLocation(program, `textureID`),
     uUseTexture: gl.getUniformLocation(program, `uUseTexture`),
-
+    uIsSourceOfLight: gl.getUniformLocation(program, `uIsSourceOfLight`),
+    ambientLight: gl.getUniformLocation(program, `u_ambientLight`),
 };
 
-var sunNode = new Node(program, vertexData, sunColor, uniformLocations);
-//earthNode.texture = uvdata;
-mat4.translate(sunNode.localMatrix, sunNode.localMatrix, [0, 0, 0]);
+var sunPosition = [0, 0, 0]
+var sunNode = new Node(program, vertexData, sunColor, uniformLocations, normalData);
+sunNode.sourceOfLight = 1;
+
+mat4.translate(sunNode.localMatrix, sunNode.localMatrix, sunPosition);
 
 
-var earthNode = new Node(program, vertexData, earthColor, uniformLocations);
+var earthNode = new Node(program, vertexData, earthColor, uniformLocations, normalData);
 //earthNode.texture = uvdata;
 mat4.translate(earthNode.localMatrix, earthNode.localMatrix, [15, 0, 0]);
 mat4.scale(earthNode.localMatrix, earthNode.localMatrix, [.4, .4, .4]);  // lua tem 27% diametro da terra
 
 
 
-var moonNode = new Node(program, vertexData, moonColor, uniformLocations);
+var moonNode = new Node(program, vertexData, moonColor, uniformLocations, normalData);
 mat4.translate(moonNode.localMatrix, moonNode.localMatrix, [5, 0, 0]);  // moon .1 units from the earth
 mat4.scale(moonNode.localMatrix, moonNode.localMatrix, [.27, .27, .27]);  // lua tem 27% diametro da terra
 
@@ -148,51 +154,34 @@ var objects = [
     moonNode,
 ];
 
+var ambientLight = .5;
+var globalSpeed = .5
+var deg = 0
+var radius = 20;
+var heightView = 0;
+
 
 //Controlar Camera
-window.onkeypress = e => {
+window.onkeydown = e => {
+    console.log(e.key)
     //Mover Camera (X Axis)
-    if (e.key == 'a' || e.key == 'A') {
-        mat4.translate(viewMatrix, viewMatrix, [-0.1, 0, 0]);
+    if (e.key == 'ArrowLeft') {
+        deg -= 1
     } 
-    else if (e.key == 'd' || e.key == 'D') {
-        mat4.translate(viewMatrix, viewMatrix, [+0.1, 0, 0]);
-    }
-    //Mover Camera (Y Axis)
-    else if (e.key == 'w' || e.key == 'W') {
-        mat4.translate(viewMatrix, viewMatrix, [0, -0.1, 0]);
+    else if (e.key == 'ArrowRight') {
+        deg += 1
+    }else if (e.key == 'ArrowUp') {
+        heightView += 1
     } 
-    else if (e.key == 's' || e.key == 'S') {
-        mat4.translate(viewMatrix, viewMatrix, [0, +0.1, 0]);
-    }
-    //Mover Camera (Z Axis)
-    else if (e.key == 'e' || e.key == 'E') {
-        mat4.translate(viewMatrix, viewMatrix, [0, 0, +0.1]);
-    }
-    else if (e.key == 'q' || e.key == 'Q') {
-        mat4.translate(viewMatrix, viewMatrix, [0, 0, -0.1]);
-    }
-    //Rodar Camera Vertical (90 Graus)
-    else if (e.key == '9') { //Roda a camera 90 graus por cima
-        mat4.rotateX(viewMatrix, viewMatrix, Math.PI/2);
-    }
-    else if (e.key == '7') { //Roda a camera 90 graus por baixo
-        mat4.rotateX(viewMatrix, viewMatrix, -Math.PI/2);
-    }
-    //Rodar Camera Vertical
-    else if (e.key == '8') { //Roda camera por cima
-        mat4.rotateX(viewMatrix, viewMatrix, +0.1);
-    } 
-    else if (e.key == '2') { //Roda camera por baixo
-        mat4.rotateX(viewMatrix, viewMatrix, -0.1);
-    } 
-    //Rodar Camera Horizontal
-    else if (e.key == '4') { //Roda camera pela esquerda
-        mat4.rotateY(viewMatrix, viewMatrix, +0.1);
-    } 
-    else if (e.key == '6') { //Roda camera pela direita
-        mat4.rotateY(viewMatrix, viewMatrix, -0.1);
-    }
+    else if (e.key == 'ArrowDown') {
+        heightView -= 1
+    
+    }else if (e.key == '6') { 
+        globalSpeed += .5
+    }//
+    else if (e.key == '4') { 
+        globalSpeed -= .5
+    }//
 }
 
 
@@ -219,17 +208,17 @@ function drawScene() {
     );
 
     // Cria matriz da camera
-    var cameraPosition = [0, 10, 25];
+    var angle = deg * Math.PI / 180;
+    var x = Math.sin(angle) * radius;
+    var z = Math.cos(angle) * radius;
+    var y = heightView;
+    var cameraPosition = [x, y, z];
     var target = [0, 0, 0];
     var up = [0, 1, 0];
     var viewMatrix = mat4.create();
-    mat4.lookAt(viewMatrix,cameraPosition, target, up);
+   
     
-
-    var viewProjectionMatrix = mat4.create();
-    mat4.multiply(viewProjectionMatrix,projectionMatrix, viewMatrix);
-    
-    var baseSpeed =  1 * Math.PI/180 // 365 dias
+    var baseSpeed =  globalSpeed * Math.PI/180 // 365 dias
     var earthRotationSpeed = baseSpeed * 365 // 1 dia
     var revolutionspeed = earthRotationSpeed/27 // 27 dias
     var sunRotationSpeed = earthRotationSpeed/27 // 27 dias
@@ -247,7 +236,11 @@ function drawScene() {
     // atualiza todas as WorldMatrix
     sunNode.updateWorldMatrix();
 
+    mat4.lookAt(viewMatrix, cameraPosition, target, up);
+    
 
+    var viewProjectionMatrix = mat4.create();
+    mat4.multiply(viewProjectionMatrix,projectionMatrix, viewMatrix);
 
         
 
@@ -269,13 +262,30 @@ function drawScene() {
         gl.bindBuffer(gl.ARRAY_BUFFER, e.buffers.textureBuffer);
         gl.vertexAttribPointer(uvLocation, 2, gl.FLOAT, false, 0, 0);
 
+        const normalLocation = gl.getAttribLocation(e.programInfo, `a_normal`);
+        gl.enableVertexAttribArray(normalLocation);
+        gl.bindBuffer(gl.ARRAY_BUFFER, e.buffers.normalBuffer);
+        gl.vertexAttribPointer(normalLocation, 3, gl.FLOAT, false, 0, 0);
+
         var mvpMatrix = mat4.create();
-        
+        var worldInverseMatrix = mat4.create();
+        var worldInverseTransposeMatrix =  mat4.create();
+
         mat4.multiply(mvpMatrix, viewProjectionMatrix, e.worldMatrix);
+        mat4.invert(worldInverseMatrix, e.worldMatrix);
+        mat4.transpose(worldInverseTransposeMatrix, worldInverseMatrix);
+
         
+        gl.uniform1f(e.uniforms.ambientLight, ambientLight)
         gl.uniform1i(e.uniforms.uUseTexture, e.texture != null)
+        gl.uniform1i(e.uniforms.uIsSourceOfLight, e.sourceOfLight)
         gl.uniform1i(e.uniforms.textureID, index)
-        gl.uniformMatrix4fv(e.uniforms.matrix, false, mvpMatrix);
+        gl.uniform3fv(e.uniforms.lightWorldPositionLocation, sunPosition);
+
+        gl.uniformMatrix4fv(e.uniforms.worldInverseTranspose, false, worldInverseTransposeMatrix);
+        gl.uniformMatrix4fv(e.uniforms.worldLocation, false, e.worldMatrix);
+        gl.uniformMatrix4fv(e.uniforms.worldViewProjection, false, mvpMatrix);
+        
         gl.drawArrays(gl.TRIANGLES, 0, e.position.length / 3);
     })
 

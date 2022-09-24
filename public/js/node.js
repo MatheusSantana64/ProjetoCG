@@ -1,15 +1,16 @@
-var Node = function(program, position, color, uniforms) {
+var Node = function(program, position, color, uniforms, normal) {
     this.children = [];
     this.localMatrix = mat4.create();
     this.privateMatrix = mat4.create();
     this.worldMatrix = mat4.create();
 
-    this.programInfo= program,
-    this.position= position,
-    this.color= color,
-    this.uniforms= uniforms,
+    this.programInfo= program;
+    this.position= position;
+    this.color= color;
+    this.uniforms= uniforms;
+    this.normal = normal;
     
-    this.startBuffer()
+    this.startBuffer();
   };
   
 Node.prototype.setParent = function(parent) {
@@ -61,11 +62,16 @@ Node.prototype.startBuffer = function() {
     gl.bindBuffer(gl.ARRAY_BUFFER, textureBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.texture), gl.STATIC_DRAW);
 
+    var normalBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.normal), gl.STATIC_DRAW);
+
 
     this.buffers = { 
         positionBuffer: positionBuffer,
         colorBuffer: colorBuffer,
         textureBuffer: textureBuffer,
+        normalBuffer: normalBuffer,
     }
 }
     
