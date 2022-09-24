@@ -43,7 +43,7 @@ Node.prototype.updateWorldMatrix = function(matrix) {
         child.updateWorldMatrix(worldMatrix);
     });
 
-    mat4.multiply(this.worldMatrix, this.privateMatrix, this.worldMatrix );
+    mat4.multiply(this.worldMatrix, this.worldMatrix, this.privateMatrix );
 }
 
 Node.prototype.startBuffer = function() {

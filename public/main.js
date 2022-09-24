@@ -84,12 +84,19 @@ gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 gl.activeTexture(gl.TEXTURE0);
 gl.bindTexture(gl.TEXTURE_2D, earthTexture);
 
+const sunColor = []
 const earthColor= []
 const moonColor = []
 
 
+
 //Define as cores de cada vertice dos objetos
 for (var i = 0; i < obj.position.length/3; i++){
+    let a = Math.random() % .1 
+    sunColor.push(0.97 - 3*a)  //R
+    sunColor.push(0.84 - 2*a) //G
+    sunColor.push(.1 - a) //B
+
     //Cores da Terra
     earthColor.push(0)  //R
     earthColor.push(Math.random() % .5) //G
@@ -115,12 +122,15 @@ const uniformLocations = {
 
 };
 
+var sunNode = new Node(program, vertexData, sunColor, uniformLocations);
+//earthNode.texture = uvdata;
+mat4.translate(sunNode.localMatrix, sunNode.localMatrix, [0, 0, 0]);
 
 
 var earthNode = new Node(program, vertexData, earthColor, uniformLocations);
 //earthNode.texture = uvdata;
-mat4.translate(earthNode.localMatrix, earthNode.localMatrix, [0, 0, 0]);
-//mat4.scale(earthNode.localMatrix, earthNode.localMatrix, [100, 100, 100]);  // lua tem 27% diametro da terra
+mat4.translate(earthNode.localMatrix, earthNode.localMatrix, [15, 0, 0]);
+mat4.scale(earthNode.localMatrix, earthNode.localMatrix, [.4, .4, .4]);  // lua tem 27% diametro da terra
 
 
 
@@ -128,10 +138,12 @@ var moonNode = new Node(program, vertexData, moonColor, uniformLocations);
 mat4.translate(moonNode.localMatrix, moonNode.localMatrix, [5, 0, 0]);  // moon .1 units from the earth
 mat4.scale(moonNode.localMatrix, moonNode.localMatrix, [.27, .27, .27]);  // lua tem 27% diametro da terra
 
+earthNode.setParent(sunNode);
 // seta lua como nó filho da terra 
 moonNode.setParent(earthNode);
 
 var objects = [
+    sunNode,
     earthNode,
     moonNode,
 ];
@@ -183,12 +195,14 @@ window.onkeypress = e => {
     }
 }
 
-var baseSpeed = 1
+
 
 requestAnimationFrame(drawScene);
+var last = 0
 // Draw the scene.
 function drawScene() {
     requestAnimationFrame(drawScene);
+    now = Date.now();
 
     gl.enable(gl.CULL_FACE);
     gl.enable(gl.DEPTH_TEST);
@@ -205,7 +219,7 @@ function drawScene() {
     );
 
     // Cria matriz da camera
-    var cameraPosition = [0, 0, 10];
+    var cameraPosition = [0, 10, 25];
     var target = [0, 0, 0];
     var up = [0, 1, 0];
     var viewMatrix = mat4.create();
@@ -215,19 +229,23 @@ function drawScene() {
     var viewProjectionMatrix = mat4.create();
     mat4.multiply(viewProjectionMatrix,projectionMatrix, viewMatrix);
     
-    let earthRotationSpeed = baseSpeed; // velocidade de rotação da terra
-    let revolutionSpeed = earthRotationSpeed/30 
-    let moonRotationSpeed = earthRotationSpeed/27 
+    var baseSpeed =  1 * Math.PI/180 // 365 dias
+    var earthRotationSpeed = baseSpeed * 365 // 1 dia
+    var revolutionspeed = earthRotationSpeed/27 // 27 dias
+    var sunRotationSpeed = earthRotationSpeed/27 // 27 dias
 
-    // atualiza as matrizes de cada objeto
-    mat4.rotateY(earthNode.localMatrix, earthNode.localMatrix, revolutionSpeed); 
-    mat4.rotateY(moonNode.localMatrix, moonNode.localMatrix, moonRotationSpeed);
+    // atualiza as localMatrix e private de cada objeto
+    mat4.rotateY(sunNode.localMatrix, sunNode.localMatrix, baseSpeed); 
+    mat4.rotateY(sunNode.privateMatrix, sunNode.privateMatrix, sunRotationSpeed); 
 
-    // atualiza aplica operação na matriz de um objeto de somente
-    mat4.rotateY(earthNode.privateMatrix, earthNode.privateMatrix, earthRotationSpeed - revolutionSpeed); // reduz a velocidade de toração da terra
+    mat4.rotateY(earthNode.localMatrix, earthNode.localMatrix, revolutionspeed); 
+    mat4.rotateY(earthNode.privateMatrix, earthNode.privateMatrix,   earthRotationSpeed); 
 
-    // Update all world matrices in the scene graph
-    earthNode.updateWorldMatrix();
+    mat4.rotateY(moonNode.localMatrix, moonNode.localMatrix, baseSpeed);
+
+
+    // atualiza todas as WorldMatrix
+    sunNode.updateWorldMatrix();
 
 
 
