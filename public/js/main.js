@@ -146,6 +146,7 @@ satelite.forEach(geometry => {
 var ambientLight = .5;
 var shininess = 10; // Maior => Diminui o ponto focal da luz
 var specularIntensity = .8; // Intensidade da luz especular
+var lightPostion = [10, 0, 10];
 // Variáveis para Câmera
 var deg = 0
 var radius = 20;
@@ -201,12 +202,12 @@ function drawScene() {
     
     // Calcular velocidade de rotação
     var baseSpeed =  globalSpeed * Math.PI/180 // 365 dias
-    var earthRotationSpeed = baseSpeed * 10 // Valor para melhor visualização. // Valor Real: 365 // 1 dia
-    var revolutionspeed = earthRotationSpeed/5 // Valor para melhor visualização. // Valor Real: 27 // 27 dias
+    var earthRotationSpeed = baseSpeed * 365 // 1 dia
+    var revolutionspeed = earthRotationSpeed/300 // Valor para melhor visualização. Valor Real: 27 // 27 dias
 
     // Rotação da Terra
     mat4.rotateY(earthNode.localMatrix, earthNode.localMatrix, revolutionspeed); 
-    mat4.rotateY(earthNode.privateMatrix, earthNode.privateMatrix,   earthRotationSpeed); 
+    mat4.rotateY(earthNode.privateMatrix, earthNode.privateMatrix, earthRotationSpeed); 
 
     // Atualiza todas as WorldMatrix
     earthNode.updateWorldMatrix();
@@ -226,7 +227,6 @@ function drawScene() {
     var viewProjectionMatrix = mat4.create();
     mat4.multiply(viewProjectionMatrix,projectionMatrix, viewMatrix);
 
-    // Buffers
     objects.forEach( (e, index) => {
         gl.useProgram(  e.programInfo,); 
         
@@ -265,7 +265,7 @@ function drawScene() {
         gl.uniform1i(e.uniforms.textureID, index)
         gl.uniform1f(e.uniforms.shininessLocation, shininess) // Brilhou
         gl.uniform1f(e.uniforms.specularIntensityLocation, specularIntensity);  // Cor Especular
-        gl.uniform3fv(e.uniforms.lightWorldPositionLocation, [10, 0, 5]) // Posição da Fonte de Luz
+        gl.uniform3fv(e.uniforms.lightWorldPositionLocation, lightPostion) // Posição da Fonte de Luz
         gl.uniform3fv(e.uniforms.viewWorldPositionLocation, cameraPosition); // Define a posição da câmera para a luz especular
         gl.uniformMatrix4fv(e.uniforms.worldInverseTranspose, false, worldInverseTransposeMatrix);
         gl.uniformMatrix4fv(e.uniforms.worldLocation, false, e.worldMatrix);
