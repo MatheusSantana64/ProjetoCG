@@ -1,36 +1,36 @@
-# ProjetoPG
+# Projeto de Processamento Gráfico (UFSCar Sorocaba)
+## Projeto Parcial 2 - Professor: Mario Liziér
+
+## Especificações do Projeto
 Projeto para a matéria de Processamento Gráfico da UFSCar.
 
-- Objetivo: Criar e visualizar uma cena 3D, mapeando os conceitos estudados.
+Objetivo: Criar e visualizar uma cena 3D, mapeando os conceitos estudados.
 
 Implementação: JavaScript + WebGL (sem utilizar bibliotecas 3D, exceto pequenas bibliotecas de auxílio)
 
-Especificações/Avaliação:
-- Visualização de pelo menos um objeto 3D por membro do grupo, redimensionando e posicionando cada objeto individualmente no ambiente virtual;
-- Utilização de pelo menos dois shaders (vertex/fragment);
-- Definição de pelo menos uma câmera;
-- Movimento simples de pelo menos um objeto;
-- Documentar no github (readme principal) as especificações do projeto, modo de interação e principais características implementadas.
+### Especificações/Avaliação
+- [x] Visualização de pelo menos um objeto 3D por membro do grupo, redimensionando e posicionando cada objeto individualmente no ambiente virtual;
+- [x] Utilização de pelo menos dois shaders (vertex/fragment);
+- [x] Definição de pelo menos uma câmera;
+- [x] Movimento simples de pelo menos um objeto;
+- [ ] Documentar no github (readme principal) as especificações do projeto, modo de interação e principais características implementadas.
 
-COMO MOVER A CAMERA:
-Y Axis:
-    W -> Move para "cima" (-Y)
-    S -> Move para "baixo" (+Y)
-X Axis:
-    A -> Move para "esquerda" (-X)
-    D -> Move para "direita" (+X)
-Z Axis:
-    Q -> Move para "longe do obj" (-Z)
-    E -> Move para "perto do obj" (+Z)
+## Como executar
+1. Abrir um terminal na pasta raiz do projeto (onde encontra-se o arquivo *server.js*)
+2. Executar no terminal os seguintes comandos:
+```
+> npm install express
+> node server.js
+```
+3. Acessar em algum navegador o [LocalHost:3000](http://localhost:3000) (Preferencialmente pelo Google Chrome)
 
-COMO RODAR A CAMERA:
-X Axis (90 Graus):
-    9 -> Roda camera por cima (+X 90º)
-    7 -> Roda camera por baixo (-X 90º)
+## Controles de câmera
+- Seta Para Cima -> Gira câmera para "cima" (+heightView (+Y))
+- Seta Para Baixo -> Gira câmera para "baixo" (-heightView (-Y))
+- Seta Esquerda -> Gira câmera para "esquerda" (-angle (X, Z))
+- Seta Direita -> Gira câmera para "direita" (+angle (X, Z))
 
-X Axis:
-    8 -> Roda camera por cima (+X)
-    2 -> Roda camera por baixo (-X)
-Y Axis:
-    4 -> Roda camera pela esquerda (+Y)
-    6 -> Roda camera pela direita (-Y)
+## Controles de Velocidade
+- Número 4 -> Diminui a velocidade global
+- Número 6 -> Aumenta a velocidade global
+- Número 5 -> Pausa a cena (Velocidade global = 0)

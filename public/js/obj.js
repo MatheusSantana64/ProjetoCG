@@ -1,3 +1,5 @@
+"use strict";
+
 // This is not a full .obj parser.
 // see http://paulbourke.net/dataformats/obj/
 
@@ -6,14 +8,12 @@ function parseOBJ(text) {
   const objPositions = [[0, 0, 0]];
   const objTexcoords = [[0, 0]];
   const objNormals = [[0, 0, 0]];
-  const objColors = [[0, 0, 0]];
 
   // same order as `f` indices
   const objVertexData = [
     objPositions,
     objTexcoords,
     objNormals,
-    objColors,
   ];
 
   // same order as `f` indices
@@ -21,7 +21,6 @@ function parseOBJ(text) {
     [],   // positions
     [],   // texcoords
     [],   // normals
-    [],   // colors
   ];
 
   const materialLibs = [];
@@ -31,7 +30,7 @@ function parseOBJ(text) {
   let material = 'default';
   let object = 'default';
 
-  const noop = () => { };
+  const noop = () => {};
 
   function newGeometry() {
     // If there is an existing geometry and it's
@@ -46,12 +45,10 @@ function parseOBJ(text) {
       const position = [];
       const texcoord = [];
       const normal = [];
-      const color = [];
       webglVertexData = [
         position,
         texcoord,
         normal,
-        color,
       ];
       geometry = {
         object,
@@ -61,7 +58,6 @@ function parseOBJ(text) {
           position,
           texcoord,
           normal,
-          color,
         },
       };
       geometries.push(geometry);
@@ -77,23 +73,12 @@ function parseOBJ(text) {
       const objIndex = parseInt(objIndexStr);
       const index = objIndex + (objIndex >= 0 ? 0 : objVertexData[i].length);
       webglVertexData[i].push(...objVertexData[i][index]);
-      // if this is the position index (index 0) and we parsed
-      // vertex colors then copy the vertex colors to the webgl vertex color data
-      if (i === 0 && objColors.length > 1) {
-        geometry.data.color.push(...objColors[index]);
-      }
     });
   }
 
   const keywords = {
     v(parts) {
-      // if there are more than 3 values here they are vertex colors
-      if (parts.length > 3) {
-        objPositions.push(parts.slice(0, 3).map(parseFloat));
-        objColors.push(parts.slice(3).map(parseFloat));
-      } else {
-        objPositions.push(parts.map(parseFloat));
-      }
+      objPositions.push(parts.map(parseFloat));
     },
     vn(parts) {
       objNormals.push(parts.map(parseFloat));
@@ -146,7 +131,6 @@ function parseOBJ(text) {
     const parts = line.split(/\s+/).slice(1);
     const handler = keywords[keyword];
     if (!handler) {
-      console.warn('unhandled keyword:', keyword);  // eslint-disable-line no-console
       continue;
     }
     handler(parts, unparsedArgs);
@@ -155,7 +139,7 @@ function parseOBJ(text) {
   // remove any arrays that have no entries.
   for (const geometry of geometries) {
     geometry.data = Object.fromEntries(
-      Object.entries(geometry.data).filter(([, array]) => array.length > 0));
+        Object.entries(geometry.data).filter(([, array]) => array.length > 0));
   }
 
   return {

@@ -74,6 +74,7 @@ function loadTexture(url) {
 const obj =  parseOBJ(loadFileAJAX('models/sphere.obj')).geometries[0].data;
 
 
+
 const vertexData = obj.position
 const uvdata = obj.texcoord;
 const normalData = obj.normal;
@@ -86,7 +87,6 @@ gl.bindTexture(gl.TEXTURE_2D, earthTexture);
 
 const sunColor = []
 const earthColor= []
-const moonColor = []
 
 
 
@@ -102,17 +102,6 @@ for (var i = 0; i < obj.position.length/3; i++){
     earthColor.push(Math.random() % .5) //G
     earthColor.push(.8) //B
     
-    //Cores da Lua
-    if(Math.random() < 0.1){
-        moonColor.push(0.3) //R
-        moonColor.push(0.3) //G
-        moonColor.push(0.3) //B
-    }else {
-        moonColor.push(0.6) //R
-        moonColor.push(0.6) //G
-        moonColor.push(0.6) //B
-    }
-    
 }
 
 const uniformLocations = {
@@ -126,36 +115,54 @@ const uniformLocations = {
     ambientLight: gl.getUniformLocation(program, `u_ambientLight`),
 };
 
-var sunPosition = [0, 0, 0]
+var sunPosition = [-10, 0, 0]
 var sunNode = new Node(program, vertexData, sunColor, uniformLocations, normalData);
 sunNode.sourceOfLight = 1;
 
 mat4.translate(sunNode.localMatrix, sunNode.localMatrix, sunPosition);
 
+var teste = [vertexData[0], vertexData[1], vertexData[2], 1];
 
 var earthNode = new Node(program, vertexData, earthColor, uniformLocations, normalData);
 //earthNode.texture = uvdata;
 mat4.translate(earthNode.localMatrix, earthNode.localMatrix, [15, 0, 0]);
 mat4.scale(earthNode.localMatrix, earthNode.localMatrix, [.4, .4, .4]);  // lua tem 27% diametro da terra
 
-
-
-var moonNode = new Node(program, vertexData, moonColor, uniformLocations, normalData);
-mat4.translate(moonNode.localMatrix, moonNode.localMatrix, [5, 0, 0]);  // moon .1 units from the earth
-mat4.scale(moonNode.localMatrix, moonNode.localMatrix, [.27, .27, .27]);  // lua tem 27% diametro da terra
-
 earthNode.setParent(sunNode);
-// seta lua como nó filho da terra 
-moonNode.setParent(earthNode);
 
 var objects = [
     sunNode,
-    earthNode,
-    moonNode,
+    earthNode
 ];
 
-var ambientLight = .5;
-var globalSpeed = .5
+
+
+var satNodes = []
+const satelite = parseOBJ(loadFileAJAX('models/Satellite.obj')).geometries;
+satelite.forEach(geometry => {
+    var satColor = []
+
+    for (var i = 0; i < geometry.data.position.length/3; i++){
+
+        satColor.push(0.3) //R
+        satColor.push(0.3) //G
+        satColor.push(0.3) //B
+
+    }
+    
+    node = new Node(program, geometry.data.position, satColor, uniformLocations, geometry.data.normal)
+    mat4.translate(node.localMatrix, node.localMatrix, [5, 0, 0]);
+    mat4.scale(node.localMatrix, node.localMatrix, [.3, .3, .3]);
+    mat4.rotateY(node.localMatrix, node.localMatrix, 180 * Math.PI/180)
+
+    satNodes.push(node);
+    node.setParent(earthNode)
+    objects.push(node);
+});
+
+
+var ambientLight = .3;
+var globalSpeed = .05
 var deg = 0
 var radius = 20;
 var heightView = 0;
@@ -164,24 +171,24 @@ var heightView = 0;
 //Controlar Camera
 window.onkeydown = e => {
     console.log(e.key)
-    //Mover Camera (X Axis)
+    //Mover Camera
     if (e.key == 'ArrowLeft') {
         deg -= 1
-    } 
-    else if (e.key == 'ArrowRight') {
+    }else if (e.key == 'ArrowRight') {
         deg += 1
     }else if (e.key == 'ArrowUp') {
         heightView += 1
-    } 
-    else if (e.key == 'ArrowDown') {
+    }else if (e.key == 'ArrowDown') {
         heightView -= 1
-    
-    }else if (e.key == '6') { 
-        globalSpeed += .5
-    }//
-    else if (e.key == '4') { 
-        globalSpeed -= .5
-    }//
+    }else if (e.key == '6') { //Aumenta velocidade global
+        globalSpeed += .05
+    }
+    else if (e.key == '4') { //Diminui velocidade global
+        globalSpeed -= .05
+    }
+    else if (e.key == '5') { //Pausa (Velocidade global = 0)
+        globalSpeed = 0
+    }
 }
 
 
@@ -207,6 +214,27 @@ function drawScene() {
         1e4 // Distancia de corte distante
     );
 
+    
+   
+    
+    var baseSpeed =  globalSpeed * Math.PI/180 // 365 dias
+    var earthRotationSpeed = baseSpeed * 365 // 1 dia
+    var revolutionspeed = earthRotationSpeed/27 // 27 dias
+    var sunRotationSpeed = earthRotationSpeed/27 // 27 dias
+
+    // atualiza as localMatrix e private de cada objeto
+    //mat4.rotateY(sunNode.localMatrix, sunNode.localMatrix, baseSpeed); 
+    //mat4.rotateY(sunNode.privateMatrix, sunNode.privateMatrix, sunRotationSpeed); 
+
+    mat4.rotateY(earthNode.localMatrix, earthNode.localMatrix, revolutionspeed); 
+    mat4.rotateY(earthNode.privateMatrix, earthNode.privateMatrix,   earthRotationSpeed); 
+
+
+
+    // atualiza todas as WorldMatrix
+    sunNode.updateWorldMatrix();
+
+
     // Cria matriz da camera
     var angle = deg * Math.PI / 180;
     var x = Math.sin(angle) * radius;
@@ -216,25 +244,6 @@ function drawScene() {
     var target = [0, 0, 0];
     var up = [0, 1, 0];
     var viewMatrix = mat4.create();
-   
-    
-    var baseSpeed =  globalSpeed * Math.PI/180 // 365 dias
-    var earthRotationSpeed = baseSpeed * 365 // 1 dia
-    var revolutionspeed = earthRotationSpeed/27 // 27 dias
-    var sunRotationSpeed = earthRotationSpeed/27 // 27 dias
-
-    // atualiza as localMatrix e private de cada objeto
-    mat4.rotateY(sunNode.localMatrix, sunNode.localMatrix, baseSpeed); 
-    mat4.rotateY(sunNode.privateMatrix, sunNode.privateMatrix, sunRotationSpeed); 
-
-    mat4.rotateY(earthNode.localMatrix, earthNode.localMatrix, revolutionspeed); 
-    mat4.rotateY(earthNode.privateMatrix, earthNode.privateMatrix,   earthRotationSpeed); 
-
-    mat4.rotateY(moonNode.localMatrix, moonNode.localMatrix, baseSpeed);
-
-
-    // atualiza todas as WorldMatrix
-    sunNode.updateWorldMatrix();
 
     mat4.lookAt(viewMatrix, cameraPosition, target, up);
     
