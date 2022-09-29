@@ -1,18 +1,17 @@
-//Referencia pro canvas
+// Referencia pro canvas
 const canvas = document.querySelector('canvas');
-//Contexto WebGL do canvas
+// Contexto WebGL do canvas
 const gl = canvas.getContext('webgl');
 
-//Verifica se navegador suporta WebGL
+// Verifica se navegador suporta WebGL
 if (!gl) {
     throw new Error('WebGL not supported');
 }
 
+// Inicializa os shaders
 const program = initShaders(gl, 'shader/vertexShader.glsl', 'shader/fragmentShader.glsl');
 
-
-
-//Carrega objetos (sphere.obj)
+// Carrega objetos
 function  loadFileAJAX(name) {
     var xhr = new XMLHttpRequest(),
     okStatus = document.location.protocol === "file:" ? 0 : 200;
@@ -21,6 +20,7 @@ function  loadFileAJAX(name) {
     return xhr.status == okStatus ? xhr.responseText : null;
 };
 
+// Carrega texturas
 function loadTexture(url) {
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -71,12 +71,9 @@ function loadTexture(url) {
     return value & (value - 1) === 0;
   }
 
-const obj =  parseOBJ(loadFileAJAX('models/sphere.obj')).geometries[0].data;
-
-
+const obj = parseOBJ(loadFileAJAX('models/sphere.obj')).geometries[0].data;
 
 const vertexData = obj.position
-const uvdata = obj.texcoord;
 const normalData = obj.normal;
 
 const earthTexture = loadTexture('models/Textures/earth.jpg');
@@ -85,12 +82,10 @@ gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 gl.activeTexture(gl.TEXTURE0);
 gl.bindTexture(gl.TEXTURE_2D, earthTexture);
 
+//Define as cores de cada vertice dos objetos
 const sunColor = []
 const earthColor= []
 
-
-
-//Define as cores de cada vertice dos objetos
 for (var i = 0; i < obj.position.length/3; i++){
     let a = Math.random() % .1 
     sunColor.push(0.97 - 3*a)  //R
@@ -121,10 +116,7 @@ sunNode.sourceOfLight = 1;
 
 mat4.translate(sunNode.localMatrix, sunNode.localMatrix, sunPosition);
 
-var teste = [vertexData[0], vertexData[1], vertexData[2], 1];
-
 var earthNode = new Node(program, vertexData, earthColor, uniformLocations, normalData);
-//earthNode.texture = uvdata;
 mat4.translate(earthNode.localMatrix, earthNode.localMatrix, [15, 0, 0]);
 mat4.scale(earthNode.localMatrix, earthNode.localMatrix, [.4, .4, .4]);  // lua tem 27% diametro da terra
 
@@ -135,38 +127,37 @@ var objects = [
     earthNode
 ];
 
-
-
+// Carrega e define o Satélite
 var satNodes = []
 const satelite = parseOBJ(loadFileAJAX('models/Satellite.obj')).geometries;
 satelite.forEach(geometry => {
+    // Cor do satélite
     var satColor = []
-
+    
     for (var i = 0; i < geometry.data.position.length/3; i++){
-
         satColor.push(0.3) //R
         satColor.push(0.3) //G
         satColor.push(0.3) //B
-
     }
     
+    // Ajusta posição, tamanho e rotação do Satélite
     node = new Node(program, geometry.data.position, satColor, uniformLocations, geometry.data.normal)
     mat4.translate(node.localMatrix, node.localMatrix, [5, 0, 0]);
     mat4.scale(node.localMatrix, node.localMatrix, [.3, .3, .3]);
     mat4.rotateY(node.localMatrix, node.localMatrix, 180 * Math.PI/180)
 
+    // Define a terra como nó pai
     satNodes.push(node);
     node.setParent(earthNode)
     objects.push(node);
 });
 
-
+// Variáveis para Luz, Velocidade e Câmera
 var ambientLight = .3;
-var globalSpeed = .05
+var globalSpeed = .25
 var deg = 0
 var radius = 20;
 var heightView = 0;
-
 
 //Controlar Camera
 window.onkeydown = e => {
@@ -180,22 +171,23 @@ window.onkeydown = e => {
         heightView += 1
     }else if (e.key == 'ArrowDown') {
         heightView -= 1
-    }else if (e.key == '6') { //Aumenta velocidade global
+    }
+    //Velocidade
+    else if (e.key == '6') { //Aumenta velocidade global
         globalSpeed += .05
-    }
-    else if (e.key == '4') { //Diminui velocidade global
+    }else if (e.key == '4') { //Diminui velocidade global
         globalSpeed -= .05
-    }
-    else if (e.key == '5') { //Pausa (Velocidade global = 0)
+    }else if (e.key == '0') { //Pausa (Velocidade global = 0)
         globalSpeed = 0
+    }else if (e.key == '1') { //Redefine para velocidade padrão (0.25)
+        globalSpeed = 0.25
     }
 }
 
-
-
+// Cena
 requestAnimationFrame(drawScene);
 var last = 0
-// Draw the scene.
+// Desenha a cena.
 function drawScene() {
     requestAnimationFrame(drawScene);
     now = Date.now();
@@ -203,7 +195,6 @@ function drawScene() {
     gl.enable(gl.CULL_FACE);
     gl.enable(gl.DEPTH_TEST);
 
- 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     var projectionMatrix = mat4.create();
@@ -213,27 +204,23 @@ function drawScene() {
         1e-4, // Distancia de corte proxima
         1e4 // Distancia de corte distante
     );
-
     
-   
-    
+    // Calcular velocidade de rotação
     var baseSpeed =  globalSpeed * Math.PI/180 // 365 dias
     var earthRotationSpeed = baseSpeed * 365 // 1 dia
     var revolutionspeed = earthRotationSpeed/27 // 27 dias
-    var sunRotationSpeed = earthRotationSpeed/27 // 27 dias
+    //var sunRotationSpeed = earthRotationSpeed/27 // 27 dias
 
     // atualiza as localMatrix e private de cada objeto
     //mat4.rotateY(sunNode.localMatrix, sunNode.localMatrix, baseSpeed); 
     //mat4.rotateY(sunNode.privateMatrix, sunNode.privateMatrix, sunRotationSpeed); 
 
+    // Rotação da Terra
     mat4.rotateY(earthNode.localMatrix, earthNode.localMatrix, revolutionspeed); 
     mat4.rotateY(earthNode.privateMatrix, earthNode.privateMatrix,   earthRotationSpeed); 
 
-
-
-    // atualiza todas as WorldMatrix
+    // Atualiza todas as WorldMatrix
     sunNode.updateWorldMatrix();
-
 
     // Cria matriz da camera
     var angle = deg * Math.PI / 180;
@@ -247,12 +234,10 @@ function drawScene() {
 
     mat4.lookAt(viewMatrix, cameraPosition, target, up);
     
-
     var viewProjectionMatrix = mat4.create();
     mat4.multiply(viewProjectionMatrix,projectionMatrix, viewMatrix);
 
-        
-
+    // Buffers
     objects.forEach( (e, index) => {
         gl.useProgram(  e.programInfo,); 
         
@@ -284,7 +269,6 @@ function drawScene() {
         mat4.invert(worldInverseMatrix, e.worldMatrix);
         mat4.transpose(worldInverseTransposeMatrix, worldInverseMatrix);
 
-        
         gl.uniform1f(e.uniforms.ambientLight, ambientLight)
         gl.uniform1i(e.uniforms.uUseTexture, e.texture != null)
         gl.uniform1i(e.uniforms.uIsSourceOfLight, e.sourceOfLight)
@@ -297,6 +281,4 @@ function drawScene() {
         
         gl.drawArrays(gl.TRIANGLES, 0, e.position.length / 3);
     })
-
-    
-  }
+}

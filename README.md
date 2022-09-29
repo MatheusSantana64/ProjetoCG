@@ -33,4 +33,5 @@ Implementação: JavaScript + WebGL (sem utilizar bibliotecas 3D, exceto pequena
 ## Controles de Velocidade
 - Número 4 -> Diminui a velocidade global
 - Número 6 -> Aumenta a velocidade global
-- Número 5 -> Pausa a cena (Velocidade global = 0)
+- Número 0 -> Pausa a cena (Velocidade global = 0)
+- Número 1 -> Redefine para velocidade padrão
