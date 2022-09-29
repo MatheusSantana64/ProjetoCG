@@ -11,7 +11,7 @@ if (!gl) {
 // Inicializa os shaders
 const program = initShaders(gl, 'shader/vertexShader.glsl', 'shader/fragmentShader.glsl');
 
-// Carrega objetos
+// Função para carregar objetos
 function  loadFileAJAX(name) {
     var xhr = new XMLHttpRequest(),
     okStatus = document.location.protocol === "file:" ? 0 : 200;
@@ -20,7 +20,14 @@ function  loadFileAJAX(name) {
     return xhr.status == okStatus ? xhr.responseText : null;
 };
 
-// Carrega texturas
+// Carregar Terra
+const terra = parseOBJ(loadFileAJAX('models/sphere.obj')).geometries[0].data;
+
+const vertexData = terra.position;
+const uvdata = terra.texcoord;
+const normalData = terra.normal;
+
+// Carrega textura da Terra
 function loadTexture(url) {
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -71,36 +78,25 @@ function loadTexture(url) {
     return value & (value - 1) === 0;
   }
 
-const obj = parseOBJ(loadFileAJAX('models/sphere.obj')).geometries[0].data;
-
-const vertexData = obj.position
-const normalData = obj.normal;
-
 const earthTexture = loadTexture('models/Textures/earth.jpg');
 gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 
 gl.activeTexture(gl.TEXTURE0);
 gl.bindTexture(gl.TEXTURE_2D, earthTexture);
 
-//Define as cores de cada vertice dos objetos
-const sunColor = []
-const earthColor= []
+//Define as cores de cada vertice da Terra
+const earthColor = []
 
-for (var i = 0; i < obj.position.length/3; i++){
+for (var i = 0; i < terra.position.length/3; i++){
     let a = Math.random() % .1 
-    sunColor.push(0.97 - 3*a)  //R
-    sunColor.push(0.84 - 2*a) //G
-    sunColor.push(.1 - a) //B
-
-    //Cores da Terra
     earthColor.push(0)  //R
     earthColor.push(Math.random() % .5) //G
     earthColor.push(.8) //B
-    
 }
 
 const uniformLocations = {
     lightWorldPositionLocation : gl.getUniformLocation(program, "u_lightWorldPosition"),
+    viewWorldPositionLocation: gl.getUniformLocation(program, "u_viewWorldPosition"),
     worldLocation: gl.getUniformLocation(program, "u_world"),
     worldViewProjection: gl.getUniformLocation(program, "u_worldViewProjection"),
     worldInverseTranspose: gl.getUniformLocation(program, "u_worldInverseTranspose"),
@@ -108,30 +104,24 @@ const uniformLocations = {
     uUseTexture: gl.getUniformLocation(program, `uUseTexture`),
     uIsSourceOfLight: gl.getUniformLocation(program, `uIsSourceOfLight`),
     ambientLight: gl.getUniformLocation(program, `u_ambientLight`),
+    shininessLocation: gl.getUniformLocation(program, `u_shininess`),
+    specularIntensityLocation: gl.getUniformLocation(program, `u_specularIntensity`),
 };
 
-var sunPosition = [-10, 0, 0]
-var sunNode = new Node(program, vertexData, sunColor, uniformLocations, normalData);
-sunNode.sourceOfLight = 1;
-
-mat4.translate(sunNode.localMatrix, sunNode.localMatrix, sunPosition);
-
+// Terra
 var earthNode = new Node(program, vertexData, earthColor, uniformLocations, normalData);
-mat4.translate(earthNode.localMatrix, earthNode.localMatrix, [15, 0, 0]);
-mat4.scale(earthNode.localMatrix, earthNode.localMatrix, [.4, .4, .4]);  // lua tem 27% diametro da terra
+mat4.translate(earthNode.localMatrix, earthNode.localMatrix, [0, 0, 0]); //Posição da Terra
+//mat4.scale(earthNode.localMatrix, earthNode.localMatrix, [.4, .4, .4]); // Tamanho da Terra
 
-earthNode.setParent(sunNode);
-
-var objects = [
-    sunNode,
-    earthNode
-];
+var objects = [ earthNode ];
 
 // Carrega e define o Satélite
 var satNodes = []
+
 const satelite = parseOBJ(loadFileAJAX('models/Satellite.obj')).geometries;
+
 satelite.forEach(geometry => {
-    // Cor do satélite
+    // Cor de cada vértice do satélite (Cinza)
     var satColor = []
     
     for (var i = 0; i < geometry.data.position.length/3; i++){
@@ -142,22 +132,26 @@ satelite.forEach(geometry => {
     
     // Ajusta posição, tamanho e rotação do Satélite
     node = new Node(program, geometry.data.position, satColor, uniformLocations, geometry.data.normal)
-    mat4.translate(node.localMatrix, node.localMatrix, [5, 0, 0]);
-    mat4.scale(node.localMatrix, node.localMatrix, [.3, .3, .3]);
+    mat4.translate(node.localMatrix, node.localMatrix, [5, 0, 0]); // Distância do Satélite pra Terra
+    mat4.scale(node.localMatrix, node.localMatrix, [.3, .3, .3]); // Escala maior para melhor visualização
     mat4.rotateY(node.localMatrix, node.localMatrix, 180 * Math.PI/180)
 
     // Define a terra como nó pai
     satNodes.push(node);
-    node.setParent(earthNode)
+    node.setParent(earthNode);
     objects.push(node);
 });
 
-// Variáveis para Luz, Velocidade e Câmera
-var ambientLight = .3;
-var globalSpeed = .25
+// Variáveis para Luz
+var ambientLight = .5;
+var shininess = 10; // Maior => Diminui o ponto focal da luz
+var specularIntensity = .8; // Intensidade da luz especular
+// Variáveis para Câmera
 var deg = 0
 var radius = 20;
 var heightView = 0;
+// Velocidade Global
+var globalSpeed = .25
 
 //Controlar Camera
 window.onkeydown = e => {
@@ -187,7 +181,7 @@ window.onkeydown = e => {
 // Cena
 requestAnimationFrame(drawScene);
 var last = 0
-// Desenha a cena.
+// Desenha a cena
 function drawScene() {
     requestAnimationFrame(drawScene);
     now = Date.now();
@@ -207,22 +201,17 @@ function drawScene() {
     
     // Calcular velocidade de rotação
     var baseSpeed =  globalSpeed * Math.PI/180 // 365 dias
-    var earthRotationSpeed = baseSpeed * 365 // 1 dia
-    var revolutionspeed = earthRotationSpeed/27 // 27 dias
-    //var sunRotationSpeed = earthRotationSpeed/27 // 27 dias
-
-    // atualiza as localMatrix e private de cada objeto
-    //mat4.rotateY(sunNode.localMatrix, sunNode.localMatrix, baseSpeed); 
-    //mat4.rotateY(sunNode.privateMatrix, sunNode.privateMatrix, sunRotationSpeed); 
+    var earthRotationSpeed = baseSpeed * 10 // Valor para melhor visualização. // Valor Real: 365 // 1 dia
+    var revolutionspeed = earthRotationSpeed/5 // Valor para melhor visualização. // Valor Real: 27 // 27 dias
 
     // Rotação da Terra
     mat4.rotateY(earthNode.localMatrix, earthNode.localMatrix, revolutionspeed); 
     mat4.rotateY(earthNode.privateMatrix, earthNode.privateMatrix,   earthRotationSpeed); 
 
     // Atualiza todas as WorldMatrix
-    sunNode.updateWorldMatrix();
+    earthNode.updateWorldMatrix();
 
-    // Cria matriz da camera
+    // Cria matriz da câmera
     var angle = deg * Math.PI / 180;
     var x = Math.sin(angle) * radius;
     var z = Math.cos(angle) * radius;
@@ -269,12 +258,15 @@ function drawScene() {
         mat4.invert(worldInverseMatrix, e.worldMatrix);
         mat4.transpose(worldInverseTransposeMatrix, worldInverseMatrix);
 
+        // Fonte de luz
         gl.uniform1f(e.uniforms.ambientLight, ambientLight)
         gl.uniform1i(e.uniforms.uUseTexture, e.texture != null)
         gl.uniform1i(e.uniforms.uIsSourceOfLight, e.sourceOfLight)
         gl.uniform1i(e.uniforms.textureID, index)
-        gl.uniform3fv(e.uniforms.lightWorldPositionLocation, sunPosition);
-
+        gl.uniform1f(e.uniforms.shininessLocation, shininess) // Brilhou
+        gl.uniform1f(e.uniforms.specularIntensityLocation, specularIntensity);  // Cor Especular
+        gl.uniform3fv(e.uniforms.lightWorldPositionLocation, [10, 0, 5]) // Posição da Fonte de Luz
+        gl.uniform3fv(e.uniforms.viewWorldPositionLocation, cameraPosition); // Define a posição da câmera para a luz especular
         gl.uniformMatrix4fv(e.uniforms.worldInverseTranspose, false, worldInverseTransposeMatrix);
         gl.uniformMatrix4fv(e.uniforms.worldLocation, false, e.worldMatrix);
         gl.uniformMatrix4fv(e.uniforms.worldViewProjection, false, mvpMatrix);
